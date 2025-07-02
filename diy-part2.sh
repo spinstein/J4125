@@ -107,3 +107,25 @@ if [ ! -f /etc/cpolar/auth ]; then
 fi
 exit 0
 EOF
+# ================= SSD寿命保护脚本 (2024.07.02) =================
+cat > files/etc/hotplug.d/block/10-ssd-protect <<'EOF'
+#!/bin/sh
+# 触发条件：SSD设备接入时执行
+[ "$ACTION" = "add" ] || exit 0
+[ "$(eval echo \$DEVICENAME)" = "sda" ] || exit 0  # 仅针对sda设备
+
+# 优化I/O调度策略
+echo "noop" > /sys/block/${DEVICENAME}/queue/scheduler 2>/dev/null
+
+# 降低队列深度减少写放大
+echo "1024" > /sys/block/${DEVICENAME}/queue/nr_requests 2>/dev/null
+
+# 欺骗系统视为机械盘（禁用TRIM聚合优化）
+echo "1" > /sys/block/${DEVICENAME}/queue/rotational 2>/dev/null
+
+# 禁用预读（SSD无需此优化）
+echo "0" > /sys/block/${DEVICENAME}/queue/read_ahead_kb 2>/dev/null
+EOF
+
+# 设置可执行权限
+chmod 755 files/etc/hotplug.d/block/10-ssd-protect
