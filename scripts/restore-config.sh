@@ -32,19 +32,37 @@ fi
 echo "=== 備份包: $BACKUP_FILE ==="
 
 # --- 完整性檢查 ---
-echo "[1/3] gunzip -t 完整性檢查"
+echo "[1/4] gunzip -t 完整性檢查"
 gunzip -t "$BACKUP_FILE" && echo "✅" || { echo "❌ 壓縮包損壞"; exit 1; }
+
+# --- 還原前備份當前配置 ---
+echo "[2/4] 備份當前配置"
+BACKUP_DIR="/tmp/config-backup-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+for conf in network/interfaces mihomo/config.yaml dnsmasq.conf nftables.conf; do
+  src="/etc/$conf"
+  if [ -f "$src" ]; then
+    mkdir -p "$(dirname "$BACKUP_DIR/$conf")"
+    cp -f "$src" "$BACKUP_DIR/$conf"
+  fi
+done
+echo "✅ 當前配置已備份到 $BACKUP_DIR"
+echo "   如需回滾：cp -r $BACKUP_DIR/* / 或逐文件回復"
 
 # --- 解壓 ---
 WORKDIR=$(mktemp -d)
 tar xzf "$BACKUP_FILE" -C "$WORKDIR"
-echo "[2/3] 已解壓到 $WORKDIR"
+echo "[3/4] 已解壓到 $WORKDIR"
 
 # --- 還原配置 ---
-echo "[3/3] 還原配置檔案"
+echo "[4/4] 還原配置檔案"
 MISSING=0
 for conf in network/interfaces mihomo/config.yaml dnsmasq.conf nftables.conf; do
-  src="$WORKDIR/etc/$conf"
+  # 兼容兩種備份包格式：etc_xxx/xxx 或 etc/xxx
+  src="$WORKDIR/etc_$conf"
+  [ ! -f "$src" ] && src="$WORKDIR/etc/$conf"
+  [ ! -f "$src" ] && src="$WORKDIR/j4125-configs/etc-$(echo $conf | tr '/' '-')"
+  
   dst="/etc/$conf"
   if [ -f "$src" ]; then
     cp -f "$src" "$dst" && echo "✅ $conf"
@@ -66,3 +84,4 @@ if [ "$MISSING" -gt 0 ]; then
   echo "⚠️ 有 $MISSING 個文件跳過，建議檢查備份包完整性"
 fi
 echo "✅ 建議執行 verify-restore.sh 確認"
+echo "💡 如需回滾：cp -r $BACKUP_DIR/* /"
