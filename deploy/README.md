@@ -53,7 +53,6 @@ cat > /etc/network/interfaces << 'EOF'
 # WAN - 接光貓（PPPoE）
 auto enp1s0
 iface enp1s0 inet manual
-    pre-up /bin/ip link set enp1s0 address YOUR_MODEM_MAC
 
 # LAN - 接 TC7102
 auto eno1
@@ -70,7 +69,7 @@ iface br-lan inet static
 auto pppoe-wan
 iface pppoe-wan inet ppp
     provider j4125-pppoe
-    pre-up /bin/ip link set enp1s0 address 1c:e5:04:fa:dc:af
+    pre-up /bin/ip link set enp1s0 address YOUR_MODEM_MAC
     pre-up /bin/ip link set enp1s0 up
 EOF
 ```
