@@ -74,7 +74,9 @@ done
 
 # --- sync 後重啟服務 ---
 sync
-systemctl restart networking dnsmasq || true
+systemctl restart networking || true
+sleep 2
+systemctl restart dnsmasq || true
 systemctl restart mihomo 2>/dev/null || echo "⚠️ mihomo 重啟報錯（手動檢查）"
 
 rm -rf "$WORKDIR"
