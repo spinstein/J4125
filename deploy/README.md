@@ -53,6 +53,7 @@ cat > /etc/network/interfaces << 'EOF'
 # WAN - 接光貓（PPPoE）
 auto enp1s0
 iface enp1s0 inet manual
+    pre-up /bin/ip link set enp1s0 address YOUR_MODEM_MAC
 
 # LAN - 接 TC7102
 auto eno1
@@ -63,7 +64,7 @@ auto br-lan
 iface br-lan inet static
     bridge_ports eno1
     address 192.168.200.254/24
-    dns-nameserver 8.8.8.8
+    dns-nameserver 223.5.5.5
 
 # PPPoE
 auto pppoe-wan
@@ -73,7 +74,7 @@ iface pppoe-wan inet ppp
 EOF
 ```
 
-> **注意：** 中國移動需要 MAC 欺騙。在 `/etc/ppp/peers/j4125-pppoe` 中設置 `hwaddr 1c:e5:04:fa:dc:af`（填入你的光貓 MAC）。
+> **注意：** 中國移動需要 MAC 欺騙。`pre-up` 中 `YOUR_MODEM_MAC` 替換為你的光貓 MAC 地址（例如 `1c:e5:04:fa:dc:af`）。MAC 欺騙在 `/etc/network/interfaces` 的 `pre-up` 中設置，不在 PPPoE peers 文件中設置。
 
 ### 2.3 PPPoE 配置
 
@@ -83,16 +84,13 @@ apt install pppoe
 
 # 創建 PPPoE 撥號配置
 cat > /etc/ppp/peers/j4125-pppoe << 'EOF'
-# 介面
+# 介面（直接寫接口名，不加 nic- 前綴）
 plugin rp-pppoe.so
-nic-enp1s0
+enp1s0
 
 # 認證
-user "你的寬帶帳號"
-password "你的寬帶密碼"
-
-# MAC 欺騙（中國移動必需）
-hwaddr 1c:e5:04:fa:dc:af
+user "YOUR_BROADBAND_ACCOUNT"
+password "YOUR_BROADBAND_PASSWORD"
 
 # IP
 noipdefault
@@ -106,6 +104,10 @@ defaultroute
 replacedefaultroute
 noauth
 EOF
+
+> **注意：** 
+> - Debian 13 pppd 2.5.2 不識別 `nic-` 和 `ifname` 前綴，直接寫接口名
+> - MAC 欺騙已在 `/etc/network/interfaces` 的 `pre-up` 中設置，此處不再需要 `hwaddr`
 ```
 
 ### 2.4 重啟網絡
@@ -234,6 +236,9 @@ wget https://github.com/MetaCubeX/mihomo/releases/download/v1.19.3/mihomo-linux-
 gunzip mihomo-linux-amd64-compatible-v1.19.3.gz
 chmod +x mihomo-linux-amd64-compatible-v1.19.3
 mv mihomo-linux-amd64-compatible-v1.19.3 /usr/local/bin/mihomo
+
+# 如果 wget 無網（剛裝完尚未配置代理），可從 PC 下載後 scp 傳入：
+# scp mihomo-linux-amd64-compatible-v1.19.3.gz root@192.168.200.254:/tmp/
 ```
 
 ### 5.2 配置 /etc/mihomo/config.yaml
@@ -243,6 +248,7 @@ mkdir -p /etc/mihomo
 ```
 
 mihomo 配置包含：mixed-port 7893、allow-lan、DNS 1053、proxy-providers（訂閱地址）。
+> **注意：** mihomo 端口統一使用 7893。如果部署環境中 7893 被佔用，可自行修改，但要同時更新 systemd 服務和煙囪測試命令。
 > **注意：** 訂閱 URL 和節點信息為敏感數據，不在本手冊中展示。使用自己的機場訂閱地址。
 
 ### 5.3 systemd 服務
@@ -329,6 +335,10 @@ fsfreeze -f /
 dd if=/dev/sda bs=4M status=progress | pigz -c > /mnt/usb/j4125-$(date +%Y%m%d)-full.img.gz
 fsfreeze -u /
 ```
+
+> **⚠️ 重要警告：** `fsfreeze -f /` 會鎖死所有文件系統操作，包括 SSH。
+> - **如果通過 SSH 操作：** 執行後 SSH 會立即凍結，無法解凍，需要物理終端執行 `fsfreeze -u /`
+> - **建議：** 使用 `/root/j4125/scripts/` 中的備份腳本，或直接物理終端操作
 
 ---
 
