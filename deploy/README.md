@@ -69,6 +69,7 @@ iface br-lan inet static
 auto pppoe-wan
 iface pppoe-wan inet ppp
     provider j4125-pppoe
+    pre-up /bin/ip link set enp1s0 address 1c:e5:04:fa:dc:af
     pre-up /bin/ip link set enp1s0 up
 EOF
 ```
@@ -84,15 +85,14 @@ apt install pppoe
 # 創建 PPPoE 撥號配置
 cat > /etc/ppp/peers/j4125-pppoe << 'EOF'
 # 介面
-plugin rp-pppoe.so
-nic-enp1s0
+plugin pppoe.so
+enp1s0
 
 # 認證
 user "你的寬帶帳號"
 password "你的寬帶密碼"
 
 # MAC 欺騙（中國移動必需）
-hwaddr 1c:e5:04:fa:dc:af
 
 # IP
 noipdefault
@@ -352,7 +352,7 @@ fsfreeze -u /
 | LAN IP | 192.168.200.254/24 |
 | DHCP 範圍 | 192.168.200.100-200 |
 | DNS | 223.5.5.5 / 114.114.114.114 |
-| mihomo 端口 | 7893 mixed |
+| mihomo 端口 | 7890 (HTTP) / 7893 (mixed) |
 | mihomo DNS | 1053 |
 | Tailscale IP | 100.x.x.x（動態） |
 | SSH 端口 | 22 |
